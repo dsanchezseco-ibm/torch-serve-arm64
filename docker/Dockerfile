@@ -16,7 +16,7 @@
 #           https://docs.docker.com/develop/develop-images/build_enhancements/
 
 
-ARG BASE_IMAGE=ubuntu:rolling
+ARG BASE_IMAGE=ubuntu:mantic-20240122
 
 # Note:
 # Define here the default python version to be used in all later build-stages as default.
@@ -25,7 +25,7 @@ ARG BASE_IMAGE=ubuntu:rolling
 # that don't let the build fail, but break current version handling logic and result
 # in images with wrong python version. To fix that, we will restate the ARG PYTHON_VERSION
 # on each build-stage.
-ARG PYTHON_VERSION=3.9
+ARG PYTHON_VERSION=3.11
 
 FROM ${BASE_IMAGE} AS compile-image
 ARG BASE_IMAGE=ubuntu:rolling
@@ -222,17 +222,22 @@ RUN git clone --recursive https://github.com/pytorch/serve.git \
 COPY --from=compile-image /home/venv /home/venv
 ENV PATH="/home/venv/bin:$PATH"
 WORKDIR "serve"
+
 RUN python -m pip install -U pip setuptools \
     && python -m pip install --no-cache-dir -r requirements/developer.txt \
-    && python ts_scripts/install_from_src.py \
-    && useradd -m model-server \
+    && python ts_scripts/install_from_src.py
+
+RUN useradd -m model-server \
     && mkdir -p /home/model-server/tmp \
-    && cp docker/dockerd-entrypoint.sh /usr/local/bin/dockerd-entrypoint.sh \
-    && chmod +x /usr/local/bin/dockerd-entrypoint.sh \
+    && cp docker/dockerd-entrypoint.sh /usr/local/bin/dockerd-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/dockerd-entrypoint.sh \
     && chown -R model-server /home/model-server \
-    && cp docker/config.properties /home/model-server/config.properties \
-    && mkdir /home/model-server/model-store && chown -R model-server /home/model-server/model-store \
+    && cp docker/config.properties /home/model-server/config.properties
+
+RUN mkdir /home/model-server/model-store && chown -R model-server /home/model-server/model-store \
     && chown -R model-server /home/venv
+
 EXPOSE 8080 8081 8082 7070 7071
 USER model-server
 WORKDIR /home/model-server
